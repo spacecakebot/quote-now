@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,6 @@ export default function Signup() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,8 +20,10 @@ export default function Signup() {
     setLoading(true);
     try {
       await signUp(email, password, fullName);
-      toast({ title: 'Account created!', description: 'Set up your shop to get started.' });
-      navigate('/setup-shop');
+      toast({
+        title: 'Check your email!',
+        description: 'We sent you a confirmation link. Please verify your email to sign in.',
+      });
     } catch (err: any) {
       toast({ title: 'Signup failed', description: err.message, variant: 'destructive' });
     } finally {

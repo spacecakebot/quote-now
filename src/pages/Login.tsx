@@ -45,7 +45,7 @@ export default function Login() {
             <Input
               id="email"
               type="email"
-              placeholder="owner@demo.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -56,7 +56,7 @@ export default function Login() {
             <Input
               id="password"
               type="password"
-              placeholder="Any password for demo"
+              placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -66,15 +66,6 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
-
-        <div className="card-elevated p-4 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Demo accounts (any password):</p>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <p><span className="font-medium text-foreground">Owner:</span> owner@demo.com</p>
-            <p><span className="font-medium text-foreground">Admin:</span> admin@demo.com</p>
-            <p><span className="font-medium text-foreground">Vendor:</span> vendor@demo.com</p>
-          </div>
-        </div>
 
         <div className="text-center text-sm text-muted-foreground">
           Don't have an account?{' '}
