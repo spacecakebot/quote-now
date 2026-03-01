@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import ShopSetup from "@/pages/ShopSetup";
 import Dashboard from "@/pages/Dashboard";
 import OrdersPage from "@/pages/OrdersPage";
 import OrderDetail from "@/pages/OrderDetail";
@@ -21,9 +22,10 @@ import NotFound from "@/pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, shop, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (!shop) return <ShopSetup />;
   return <AppLayout>{children}</AppLayout>;
 }
 
