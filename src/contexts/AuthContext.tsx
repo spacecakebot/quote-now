@@ -94,21 +94,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithPhone = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    const { data, error } = await supabase.functions.invoke('send-otp', {
+      body: { phone },
+    });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
   };
 
   const signUpWithPhone = async (phone: string, fullName: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-      options: { data: { full_name: fullName } },
+    const { data, error } = await supabase.functions.invoke('send-otp', {
+      body: { phone, fullName },
     });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
   };
 
   const verifyOtp = async (phone: string, token: string) => {
-    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+    const { data, error } = await supabase.functions.invoke('verify-otp', {
+      body: { phone, otp: token },
+    });
     if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    
+    if (data?.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
   };
 
   const signOut = async () => {
