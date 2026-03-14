@@ -28,10 +28,7 @@ export default function ShopSetup() {
       }).select().single();
       if (shopErr) throw shopErr;
 
-      // Link profile to shop
-      const { error: profileErr } = await supabase.from('profiles').update({ shop_id: shop.id }).eq('id', user!.id);
-      if (profileErr) throw profileErr;
-
+      // Trigger auto-links profile to shop — just refresh
       await refreshProfile();
       toast.success('Shop created! Welcome aboard.');
     } catch (err: any) {
