@@ -43,6 +43,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
       <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
+      <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
       <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
