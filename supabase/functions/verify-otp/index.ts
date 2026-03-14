@@ -5,10 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function phoneToEmail(phone: string): string {
-  return `${phone.replace(/\+/g, "")}@phone.goldshop.local`;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +14,14 @@ Deno.serve(async (req) => {
     const { phone, otp } = await req.json();
     if (!phone || !otp) {
       return new Response(JSON.stringify({ error: "Phone and OTP are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate input format
+    if (typeof otp !== 'string' || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+      return new Response(JSON.stringify({ error: "OTP must be a 6-digit number" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -49,58 +53,13 @@ Deno.serve(async (req) => {
     // Mark OTP as verified
     await supabase.from("phone_otps").update({ verified: true }).eq("id", otpRecord.id);
 
-    const generatedEmail = phoneToEmail(phone);
-    const tempPassword = crypto.randomUUID();
-    const fullName = otpRecord.full_name || "User";
+    // Clean up old OTPs for this phone
+    await supabase.from("phone_otps").delete().eq("phone", phone).neq("id", otpRecord.id);
 
-    // Check if user with this email exists
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u) => u.email === generatedEmail);
-
-    if (existingUser) {
-      // Update password and sign in
-      await supabase.auth.admin.updateUser(existingUser.id, { password: tempPassword });
-
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: generatedEmail,
-        password: tempPassword,
-      });
-
-      if (signInError) throw new Error(`Sign in failed: ${signInError.message}`);
-
-      return new Response(JSON.stringify({ success: true, session: signInData.session }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else {
-      // Create new user with email-based auth
-      const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email: generatedEmail,
-        email_confirm: true,
-        password: tempPassword,
-        phone,
-        phone_confirm: true,
-        user_metadata: { full_name: fullName },
-      });
-
-      if (createError) throw new Error(`Failed to create user: ${createError.message}`);
-
-      // Update profile with phone number
-      await supabase.from("profiles").update({ phone }).eq("id", newUser.user.id);
-
-      // Sign in
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: generatedEmail,
-        password: tempPassword,
-      });
-
-      if (signInError) throw new Error(`Sign in failed: ${signInError.message}`);
-
-      return new Response(JSON.stringify({ success: true, session: signInData.session }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error: unknown) {
     console.error("Error in verify-otp:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
