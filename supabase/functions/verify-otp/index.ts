@@ -5,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function phoneToEmail(phone: string): string {
+  return `${phone.replace(/\+/g, "")}@phone.goldshop.local`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,64 +49,58 @@ Deno.serve(async (req) => {
     // Mark OTP as verified
     await supabase.from("phone_otps").update({ verified: true }).eq("id", otpRecord.id);
 
-    // Check if user exists with this phone
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find((u) => u.phone === phone);
+    const generatedEmail = phoneToEmail(phone);
+    const tempPassword = crypto.randomUUID();
+    const fullName = otpRecord.full_name || "User";
 
-    let session;
+    // Check if user with this email exists
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find((u) => u.email === generatedEmail);
 
     if (existingUser) {
-      // Sign in existing user
-      const { data, error } = await supabase.auth.admin.generateLink({
-        type: "magiclink",
-        email: existingUser.email || `${phone.replace(/\+/g, "")}@phone.local`,
-      });
-      
-      if (error) throw new Error(`Failed to generate link: ${error.message}`);
-
-      // Use signInWithPassword with a temp password approach
-      // Better: use admin to create a session directly
-      const tempPassword = crypto.randomUUID();
+      // Update password and sign in
       await supabase.auth.admin.updateUser(existingUser.id, { password: tempPassword });
-      
+
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        phone,
+        email: generatedEmail,
         password: tempPassword,
       });
 
       if (signInError) throw new Error(`Sign in failed: ${signInError.message}`);
-      session = signInData.session;
+
+      return new Response(JSON.stringify({ success: true, session: signInData.session }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     } else {
-      // Create new user
-      const tempPassword = crypto.randomUUID();
-      const fullName = otpRecord.full_name || "User";
-      
+      // Create new user with email-based auth
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        email: generatedEmail,
+        email_confirm: true,
+        password: tempPassword,
         phone,
         phone_confirm: true,
-        password: tempPassword,
         user_metadata: { full_name: fullName },
       });
 
       if (createError) throw new Error(`Failed to create user: ${createError.message}`);
 
-      // Sign in the new user
+      // Update profile with phone number
+      await supabase.from("profiles").update({ phone }).eq("id", newUser.user.id);
+
+      // Sign in
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        phone,
+        email: generatedEmail,
         password: tempPassword,
       });
 
       if (signInError) throw new Error(`Sign in failed: ${signInError.message}`);
-      session = signInData.session;
+
+      return new Response(JSON.stringify({ success: true, session: signInData.session }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    // Clean up expired OTPs
-    await supabase.from("phone_otps").delete().lt("expires_at", new Date().toISOString());
-
-    return new Response(JSON.stringify({ success: true, session }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (error: unknown) {
     console.error("Error in verify-otp:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
