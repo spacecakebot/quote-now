@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
+const MAX_OTPS_PER_PHONE_PER_HOUR = 3;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -16,6 +17,14 @@ Deno.serve(async (req) => {
     const { phone, fullName } = await req.json();
     if (!phone) {
       return new Response(JSON.stringify({ error: "Phone number is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate phone format
+    if (typeof phone !== 'string' || !phone.startsWith('+') || phone.length < 8 || phone.length > 16) {
+      return new Response(JSON.stringify({ error: "Invalid phone number format. Include country code (e.g. +91)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -34,13 +43,27 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Rate limiting: max N OTPs per phone per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count, error: countError } = await supabase
+      .from("phone_otps")
+      .select("*", { count: "exact", head: true })
+      .eq("phone", phone)
+      .gte("created_at", oneHourAgo);
+
+    if (countError) throw new Error(`Rate limit check failed: ${countError.message}`);
+
+    if (count !== null && count >= MAX_OTPS_PER_PHONE_PER_HOUR) {
+      return new Response(JSON.stringify({ error: "Too many OTP requests. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Generate 6-digit OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Delete any existing OTPs for this phone
-    await supabase.from("phone_otps").delete().eq("phone", phone);
-
-    // Store OTP with 5-minute expiry
+    // Store OTP with 5-minute expiry (keep old ones for rate limiting count)
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const { error: insertError } = await supabase.from("phone_otps").insert({
       phone,
@@ -68,6 +91,8 @@ Deno.serve(async (req) => {
 
     const smsData = await smsResponse.json();
     if (!smsResponse.ok) {
+      // Clean up the OTP if SMS failed
+      await supabase.from("phone_otps").delete().eq("phone", phone).eq("otp_code", otpCode);
       throw new Error(`Twilio API error [${smsResponse.status}]: ${JSON.stringify(smsData)}`);
     }
 

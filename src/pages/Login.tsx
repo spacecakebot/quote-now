@@ -98,9 +98,14 @@ export default function Login() {
           </TabsContent>
         </Tabs>
 
-        <div className="text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
+        <div className="text-center space-y-2">
+          <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary hover:underline">
+            Forgot your password?
+          </Link>
+          <div className="text-sm text-muted-foreground">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-primary font-medium hover:underline">Sign up</Link>
+          </div>
         </div>
       </div>
     </div>
