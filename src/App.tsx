@@ -21,7 +21,6 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, shop, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -37,6 +36,25 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+      <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
+      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+      <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+      <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
+      <Route path="/vendors" element={<ProtectedRoute><VendorsPage /></ProtectedRoute>} />
+      <Route path="/quotations" element={<ProtectedRoute><QuotationsPage /></ProtectedRoute>} />
+      <Route path="/reminders" element={<ProtectedRoute><RemindersPage /></ProtectedRoute>} />
+      <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -44,20 +62,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
-            <Route path="/signup" element={<AuthRoute><Signup /></AuthRoute>} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-            <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-            <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-            <Route path="/vendors" element={<ProtectedRoute><VendorsPage /></ProtectedRoute>} />
-            <Route path="/quotations" element={<ProtectedRoute><QuotationsPage /></ProtectedRoute>} />
-            <Route path="/reminders" element={<ProtectedRoute><RemindersPage /></ProtectedRoute>} />
-            <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
