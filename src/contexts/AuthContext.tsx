@@ -11,10 +11,10 @@ interface AuthContextType {
   role: AppRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
-  signInWithPhone: (phone: string) => Promise<void>;
-  signUpWithPhone: (phone: string, fullName: string) => Promise<void>;
-  verifyOtp: (phone: string, token: string) => Promise<void>;
+  signInWithPhonePassword: (phone: string, password: string) => Promise<void>;
+  sendOtp: (phone: string, fullName?: string) => Promise<void>;
+  verifyOtpOnly: (phone: string, otp: string) => Promise<void>;
+  signUpWithDetails: (email: string, password: string, fullName: string, phone: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -84,24 +84,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    if (error) throw error;
-  };
-
-  const signInWithPhone = async (phone: string) => {
-    const { data, error } = await supabase.functions.invoke('send-otp', {
-      body: { phone },
+  const signInWithPhonePassword = async (phone: string, password: string) => {
+    const { data, error } = await supabase.functions.invoke('sign-in-with-phone', {
+      body: { phone, password },
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
+
+    if (data?.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
   };
 
-  const signUpWithPhone = async (phone: string, fullName: string) => {
+  const sendOtp = async (phone: string, fullName?: string) => {
     const { data, error } = await supabase.functions.invoke('send-otp', {
       body: { phone, fullName },
     });
@@ -109,18 +107,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data?.error) throw new Error(data.error);
   };
 
-  const verifyOtp = async (phone: string, token: string) => {
+  const verifyOtpOnly = async (phone: string, otp: string) => {
     const { data, error } = await supabase.functions.invoke('verify-otp', {
-      body: { phone, otp: token },
+      body: { phone, otp },
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    
-    if (data?.session) {
-      await supabase.auth.setSession({
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-      });
+  };
+
+  const signUpWithDetails = async (email: string, password: string, fullName: string, phone: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName, phone } },
+    });
+    if (error) throw error;
+
+    // Update profile with phone number after signup
+    if (data.user) {
+      await supabase.from('profiles').update({ phone }).eq('id', data.user.id);
     }
   };
 
@@ -140,7 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role = profile?.role ?? null;
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, shop, role, loading, signIn, signUp, signInWithPhone, signUpWithPhone, verifyOtp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{
+      user, session, profile, shop, role, loading,
+      signIn, signInWithPhonePassword, sendOtp, verifyOtpOnly, signUpWithDetails,
+      signOut, refreshProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );
