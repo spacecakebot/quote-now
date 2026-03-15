@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Phone, MapPin, ChevronRight, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatCurrency, formatDate, quotationRequestStatusConfig, quotationStatusConfig, StatusBadge } from '@/lib/status-utils';
+import SendMessageDialog from '@/components/SendMessageDialog';
 
 export default function VendorsPage() {
   const [search, setSearch] = useState('');
@@ -20,7 +21,7 @@ export default function VendorsPage() {
   const createVendor = useCreateVendor();
 
   const filtered = vendors.filter((v: any) =>
-    !search || v.name.toLowerCase().includes(search.toLowerCase()) || (v.phone || '').includes(search)
+    !search || v.name.toLowerCase().includes(search.toLowerCase()) || (v.phone || '').includes(search) || (v.notes || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const selectedVendor = vendors.find((v: any) => v.id === selected);
@@ -39,7 +40,7 @@ export default function VendorsPage() {
   return (
     <div className="p-4 lg:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-display font-bold text-foreground">Vendors</h1>
+        <h1 className="text-xl font-display font-bold text-foreground">Vendors ({vendors.length})</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild><Button className="gold-gradient text-primary-foreground" size="sm"><Plus className="w-4 h-4 mr-1" /> Add</Button></DialogTrigger>
           <DialogContent>
@@ -57,14 +58,26 @@ export default function VendorsPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search vendors..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder="Search by name, phone, notes..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {selectedVendor ? (
         <div className="space-y-4 animate-fade-in">
           <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="text-muted-foreground">← Back to list</Button>
           <div className="card-elevated p-4 space-y-3">
-            <h2 className="text-lg font-display font-bold text-foreground">{selectedVendor.name}</h2>
+            <div className="flex items-start justify-between">
+              <h2 className="text-lg font-display font-bold text-foreground">{selectedVendor.name}</h2>
+              {selectedVendor.phone && (
+                <SendMessageDialog
+                  defaultPhone={selectedVendor.phone}
+                  defaultMessage={`Hi ${selectedVendor.name}, this is a message from our shop.`}
+                  relatedType="vendor"
+                  relatedId={selectedVendor.id}
+                  triggerLabel="Message"
+                  triggerSize="sm"
+                />
+              )}
+            </div>
             {selectedVendor.phone && <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="w-4 h-4" /> {selectedVendor.phone}</p>}
             {selectedVendor.address && <p className="text-sm text-muted-foreground flex items-center gap-2"><MapPin className="w-4 h-4" /> {selectedVendor.address}</p>}
             {selectedVendor.notes && <p className="text-sm text-foreground">{selectedVendor.notes}</p>}
@@ -92,6 +105,7 @@ export default function VendorsPage() {
               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
             </button>
           ))}
+          {filtered.length === 0 && <div className="text-center py-12 text-muted-foreground"><p className="text-sm">No vendors found</p></div>}
         </div>
       )}
     </div>

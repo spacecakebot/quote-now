@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Phone, MapPin, ChevronRight, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import SendMessageDialog from '@/components/SendMessageDialog';
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('');
@@ -19,11 +20,15 @@ export default function CustomersPage() {
   const createCustomer = useCreateCustomer();
 
   const filtered = customers.filter((c: any) =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)
+    !search || c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search) || (c.address || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const selectedCustomer = customers.find((c: any) => c.id === selected);
   const customerOrders = selected ? orders.filter((o: any) => o.customer_id === selected) : [];
+  const totalOutstanding = customerOrders.reduce((sum: number, o: any) => {
+    const paid = o.advance_amount || 0;
+    return sum + (Number(o.total_amount) - Number(paid));
+  }, 0);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +42,7 @@ export default function CustomersPage() {
   return (
     <div className="p-4 lg:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-display font-bold text-foreground">Customers</h1>
+        <h1 className="text-xl font-display font-bold text-foreground">Customers ({customers.length})</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild><Button className="gold-gradient text-primary-foreground" size="sm"><Plus className="w-4 h-4 mr-1" /> Add</Button></DialogTrigger>
           <DialogContent>
@@ -55,17 +60,35 @@ export default function CustomersPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search customers..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder="Search by name, phone, address..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {selectedCustomer ? (
         <div className="space-y-4 animate-fade-in">
           <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="text-muted-foreground">← Back to list</Button>
           <div className="card-elevated p-4 space-y-3">
-            <h2 className="text-lg font-display font-bold text-foreground">{selectedCustomer.name}</h2>
+            <div className="flex items-start justify-between">
+              <h2 className="text-lg font-display font-bold text-foreground">{selectedCustomer.name}</h2>
+              {selectedCustomer.phone && (
+                <SendMessageDialog
+                  defaultPhone={selectedCustomer.phone}
+                  defaultMessage={`Hi ${selectedCustomer.name}, this is a message from our shop.`}
+                  relatedType="customer"
+                  relatedId={selectedCustomer.id}
+                  triggerLabel="Message"
+                  triggerSize="sm"
+                />
+              )}
+            </div>
             {selectedCustomer.phone && <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="w-4 h-4" /> {selectedCustomer.phone}</p>}
             {selectedCustomer.address && <p className="text-sm text-muted-foreground flex items-center gap-2"><MapPin className="w-4 h-4" /> {selectedCustomer.address}</p>}
             {selectedCustomer.notes && <p className="text-sm text-foreground">{selectedCustomer.notes}</p>}
+            {customerOrders.length > 0 && totalOutstanding > 0 && (
+              <div className="bg-destructive/10 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">Outstanding Balance</p>
+                <p className="text-lg font-bold text-destructive">{formatCurrency(totalOutstanding)}</p>
+              </div>
+            )}
           </div>
           <h3 className="text-sm font-display font-semibold text-foreground">Order History ({customerOrders.length})</h3>
           {customerOrders.map((o: any) => (
