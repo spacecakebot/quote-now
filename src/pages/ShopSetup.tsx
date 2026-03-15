@@ -20,12 +20,12 @@ export default function ShopSetup() {
     setLoading(true);
     try {
       // Create shop
-      const { data: shop, error: shopErr } = await supabase.from('shops').insert({
+      const { error: shopErr } = await supabase.from('shops').insert({
         name: name.trim(),
         phone: phone || null,
         address: address || null,
         created_by: user!.id,
-      }).select().single();
+      });
       if (shopErr) throw shopErr;
 
       // Trigger auto-links profile to shop — just refresh
