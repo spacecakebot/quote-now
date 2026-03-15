@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Phone, MapPin, Calendar, Plus, Loader2 } from 'lucide-react';
+import SendMessageDialog from '@/components/SendMessageDialog';
 import type { OrderStatus } from '@/types';
 
 const statusFlow: OrderStatus[] = ['draft', 'received', 'in_progress', 'ready', 'delivered'];
@@ -39,7 +40,6 @@ export default function OrderDetail() {
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     await createPayment.mutateAsync({ order_id: order.id, amount: Number(payForm.amount), method: payForm.method, notes: payForm.notes || undefined });
-    // Update payment_status on order
     const newTotalPaid = totalPaid + Number(payForm.amount);
     const newStatus = newTotalPaid >= Number(order.total_amount) ? 'paid' : newTotalPaid > 0 ? 'partial' : 'unpaid';
     await updateOrder.mutateAsync({ id: order.id, payment_status: newStatus });
@@ -50,6 +50,9 @@ export default function OrderDetail() {
   const handleStatusChange = async (newStatus: string) => {
     await updateOrder.mutateAsync({ id: order.id, status: newStatus });
   };
+
+  // Build order summary for WhatsApp
+  const orderSummary = `Order: ${order.order_no}\nTitle: ${order.title}\nStatus: ${orderStatusConfig[order.status as keyof typeof orderStatusConfig]?.label}\nTotal: ${formatCurrency(order.total_amount)}\nPaid: ${formatCurrency(totalPaid)}\nBalance: ${formatCurrency(balance)}${order.due_date ? `\nDue: ${formatDate(order.due_date)}` : ''}`;
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-3xl">
@@ -63,13 +66,26 @@ export default function OrderDetail() {
           </div>
           <h1 className="text-lg font-display font-bold text-foreground truncate">{order.title}</h1>
         </div>
-        <Select value={order.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {statusFlow.map(s => <SelectItem key={s} value={s}>{orderStatusConfig[s].label}</SelectItem>)}
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          {order.customer?.phone && (
+            <SendMessageDialog
+              defaultPhone={order.customer.phone}
+              defaultMessage={orderSummary}
+              relatedType="order"
+              relatedId={order.id}
+              templateName="order_details"
+              triggerLabel="Send"
+              triggerSize="sm"
+            />
+          )}
+          <Select value={order.status} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {statusFlow.map(s => <SelectItem key={s} value={s}>{orderStatusConfig[s].label}</SelectItem>)}
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Status timeline */}
